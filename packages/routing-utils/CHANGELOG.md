@@ -1,5 +1,31 @@
 # @vercel/routing-utils
 
+## 5.4.0
+
+### Minor Changes
+
+- Undeprecate `routes` schema and add aliases for `src`, `dest`, and `status` ([#15010](https://github.com/vercel/vercel/pull/15010))
+
+## 5.3.3
+
+### Patch Changes
+
+- Services routing improvements: ([#15018](https://github.com/vercel/vercel/pull/15018))
+
+  - Fix route ownership scoping so parent service catch-alls (e.g. Vite SPA fallback) don't capture sibling service prefixes
+  - Move shared ownership-guard helpers (`getOwnershipGuard`, `scopeRouteSourceToOwnership`) to `@vercel/routing-utils`
+  - Place runtime service function outputs under internal `/_svc/<service>/index` namespace to prevent filesystem path leakage
+  - Block `/_svc` as a reserved routePrefix in service validation
+  - Scope all builder-emitted routes (not just route-owning builders) to their service ownership before merging
+
+## 5.3.2
+
+### Patch Changes
+
+- Add respectOriginCacheControl to rewritesSchema ([#14506](https://github.com/vercel/vercel/pull/14506))
+
+- Add respectOriginCacheControl to routes schema ([#14565](https://github.com/vercel/vercel/pull/14565))
+
 ## 5.3.1
 
 ### Patch Changes

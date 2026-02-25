@@ -391,7 +391,7 @@ test('deploy from a nested directory', async () => {
   vc.stdin?.write('app\n');
 
   // This means the framework detection worked!
-  await waitForPrompt(vc, 'Auto-detected Project Settings (Next.js)');
+  await waitForPrompt(vc, 'Auto-detected Project Settings for Next.js');
 
   vc.kill();
 });
@@ -429,7 +429,7 @@ test('deploy from a nested directory with `--archive=tgz` option', async () => {
   vc.stdin?.write('app\n');
 
   // This means the framework detection worked!
-  await waitForPrompt(vc, 'Auto-detected Project Settings (Next.js)');
+  await waitForPrompt(vc, 'Auto-detected Project Settings for Next.js');
 
   vc.kill();
 });
@@ -601,7 +601,7 @@ test.skip('deploy `api-env` fixture and test `vercel env` command', async () => 
       new RegExp(`${promptEnvVar}="my plaintext value"`)
     );
     expect(contents).toMatch(
-      new RegExp(`${stdinEnvVar}=\\{"expect":"quotes"\\}`)
+      new RegExp(`${stdinEnvVar}="{"expect":"quotes"}"`)
     );
     expect(contents).not.toMatch(new RegExp(`${previewEnvVar}`));
   }
@@ -754,11 +754,11 @@ test.skip('deploy `api-env` fixture and test `vercel env` command', async () => 
 
     const lines = new Set(contents.split('\n'));
 
-    expect(lines).toContain('VERCEL=1');
-    expect(lines).toContain('VERCEL_URL=');
-    expect(lines).toContain('VERCEL_ENV=production');
-    expect(lines).toContain('VERCEL_GIT_PROVIDER=');
-    expect(lines).toContain('VERCEL_GIT_REPO_SLUG=');
+    expect(lines).toContain('VERCEL="1"');
+    expect(lines).toContain('VERCEL_URL=""');
+    expect(lines).toContain('VERCEL_ENV="production"');
+    expect(lines).toContain('VERCEL_GIT_PROVIDER=""');
+    expect(lines).toContain('VERCEL_GIT_REPO_SLUG=""');
   }
 
   async function vcDevAndFetchSystemVars() {

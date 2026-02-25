@@ -3,9 +3,116 @@ import { join, basename } from 'path';
 import { fork } from 'child_process';
 import { config as dotenvConfig } from 'dotenv';
 import output from '../output-manager';
-import { NowBuildError } from '@vercel/build-utils';
 import { VERCEL_DIR } from './projects/link';
 import { ConflictingConfigFiles } from './errors-ts';
+import { NowBuildError } from '@vercel/build-utils';
+import type {
+  RouteWithSrc,
+  Rewrite,
+  Redirect,
+  Header,
+} from '@vercel/routing-utils';
+import type { VercelConfig } from '@vercel/client';
+
+type RouteInput = RouteWithSrc | Rewrite | Redirect | Header;
+
+function toRouteFormat(item: RouteInput): RouteWithSrc {
+  if ('src' in item) return item;
+
+  const { source, destination, headers, statusCode, permanent, ...rest } =
+    item as Rewrite & Redirect & Header;
+
+  const route: RouteWithSrc = {
+    src: source,
+    ...rest,
+  };
+
+  if (destination) route.dest = destination;
+  if (headers)
+    route.headers = Object.fromEntries(headers.map(h => [h.key, h.value]));
+
+  if (statusCode !== undefined) {
+    route.status = statusCode;
+  } else if (permanent !== undefined) {
+    route.status = permanent ? 308 : 307;
+  }
+
+  return route;
+}
+
+/**
+ * Normalize config to ensure valid vercel.json output.
+ *
+ * Handles mixed Route/Rewrite types in the same array (from routes.rewrite() API).
+ * When Route format items (src/dest) are detected in rewrites/redirects arrays,
+ * the entire array is normalized to routes format.
+ *
+ * If routes and rewrites/redirects are BOTH explicitly defined,
+ * returns unchanged to let schema validation fail.
+ */
+export function normalizeConfig(config: VercelConfig): VercelConfig {
+  const normalized = { ...config };
+  const { rewrites, redirects, headers } = normalized;
+  let allRoutes: RouteInput[] = (normalized.routes as RouteInput[]) || [];
+
+  const hasRoutes = allRoutes.length > 0;
+  const hasRewrites = (rewrites?.length ?? 0) > 0;
+  const hasRedirects = (redirects?.length ?? 0) > 0;
+  const hasHeaders = (headers?.length ?? 0) > 0;
+
+  function hasRouteFormat(items: RouteInput[] | undefined): boolean {
+    return items?.some(item => 'src' in item) ?? false;
+  }
+
+  // If routes explicitly exists alongside rewrites/redirects/headers, don't merge - let schema validation fail
+  if (hasRoutes && (hasRewrites || hasRedirects || hasHeaders)) {
+    return normalized;
+  }
+
+  // If some arrays will convert to routes but others won't, throw a more specific & helpful error
+  const shouldConvertRewrites = hasRewrites && hasRouteFormat(rewrites);
+  const shouldConvertRedirects = hasRedirects && hasRouteFormat(redirects);
+  const shouldConvertHeaders = hasHeaders && hasRouteFormat(headers);
+
+  const someWillConvert =
+    shouldConvertRewrites || shouldConvertRedirects || shouldConvertHeaders;
+  const someWontConvert =
+    (hasRewrites && !shouldConvertRewrites) ||
+    (hasRedirects && !shouldConvertRedirects) ||
+    (hasHeaders && !shouldConvertHeaders);
+
+  if (someWillConvert && someWontConvert) {
+    throw new NowBuildError({
+      code: 'INVALID_VERCEL_CONFIG',
+      message:
+        'Transforms (e.g., requestHeaders) require the `routes` format, ' +
+        'which cannot be used alongside `rewrites`, `redirects`, or `headers`. ' +
+        'Move everything into the `routes` array instead.',
+      link: 'https://vercel.com/docs/projects/project-configuration#routes',
+    });
+  }
+
+  if (rewrites && shouldConvertRewrites) {
+    allRoutes = [...allRoutes, ...rewrites.map(toRouteFormat)];
+    delete normalized.rewrites;
+  }
+
+  if (redirects && shouldConvertRedirects) {
+    allRoutes = [...allRoutes, ...redirects.map(toRouteFormat)];
+    delete normalized.redirects;
+  }
+
+  if (headers && shouldConvertHeaders) {
+    allRoutes = [...allRoutes, ...headers.map(toRouteFormat)];
+    delete normalized.headers;
+  }
+
+  if (allRoutes.length > 0) {
+    normalized.routes = allRoutes.map(toRouteFormat);
+  }
+
+  return normalized;
+}
 
 export interface CompileConfigResult {
   configPath: string | null;
@@ -13,7 +120,14 @@ export interface CompileConfigResult {
   sourceFile?: string;
 }
 
-const VERCEL_CONFIG_EXTENSIONS = ['ts', 'mts', 'js', 'mjs', 'cjs'] as const;
+export const VERCEL_CONFIG_EXTENSIONS = [
+  'ts',
+  'mts',
+  'js',
+  'mjs',
+  'cjs',
+] as const;
+export const DEFAULT_VERCEL_CONFIG_FILENAME = 'Vercel config';
 
 async function fileExists(filePath: string): Promise<boolean> {
   try {
@@ -106,18 +220,6 @@ export async function compileVercelConfig(
   // Check for conflicting vercel.json and now.json
   if (hasVercelJson && hasNowJson) {
     throw new ConflictingConfigFiles([vercelJsonPath, nowJsonPath]);
-  }
-
-  // Only check for vercel.{ext} if feature flag is enabled
-  if (!process.env.VERCEL_TS_CONFIG_ENABLED) {
-    return {
-      configPath: hasVercelJson
-        ? vercelJsonPath
-        : hasNowJson
-          ? nowJsonPath
-          : null,
-      wasCompiled: false,
-    };
   }
 
   const vercelConfigPath = await findVercelConfigFile(workPath);
@@ -257,9 +359,10 @@ export async function compileVercelConfig(
       });
     });
 
+    const normalizedConfig = normalizeConfig(config as VercelConfig);
     await writeFile(
       compiledConfigPath,
-      JSON.stringify(config, null, 2),
+      JSON.stringify(normalizedConfig, null, 2),
       'utf-8'
     );
 
@@ -272,9 +375,10 @@ export async function compileVercelConfig(
     };
   } catch (error: any) {
     throw new NowBuildError({
-      code: 'vercel_ts_compilation_failed',
-      message: `Failed to compile ${vercelConfigPath}: ${error.message}`,
-      link: 'https://vercel.com/docs/projects/project-configuration',
+      code: error.code ?? 'vercel_ts_compilation_failed',
+      message: `Failed to compile ${basename(vercelConfigPath)}: ${error.message}`,
+      link:
+        error.link ?? 'https://vercel.com/docs/projects/project-configuration',
     });
   } finally {
     await Promise.all([

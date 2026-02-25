@@ -363,18 +363,11 @@ test(
       await testPath(
         500,
         '/',
-        /Route at index 0 has invalid `src` regular expression/m
+        /Route at index 0 has invalid `src`\/`source` regular expression/m
       );
     },
     { skipDeploy: true }
   )
-);
-
-test(
-  '[vercel dev] support legacy `@now` scope runtimes',
-  testFixtureStdio('legacy-now-runtime', async (testPath: any) => {
-    await testPath(200, '/', /A simple deployment with the Vercel API!/m);
-  })
 );
 
 // n.b. this test requires the project 00-list-directory to have directory listing
