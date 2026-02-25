@@ -19,6 +19,13 @@ export class RootTelemetryClient extends TelemetryClient {
     });
   }
 
+  trackCliCommandApi(actual: string) {
+    this.trackCliCommand({
+      command: 'api',
+      value: actual,
+    });
+  }
+
   trackCliCommandBisect(actual: string) {
     this.trackCliCommand({
       command: 'bisect',
@@ -50,6 +57,13 @@ export class RootTelemetryClient extends TelemetryClient {
   trackCliCommandCerts(actual: string) {
     this.trackCliCommand({
       command: 'certs',
+      value: actual,
+    });
+  }
+
+  trackCliCommandContract(actual: string) {
+    this.trackCliCommand({
+      command: 'contract',
       value: actual,
     });
   }
@@ -92,6 +106,13 @@ export class RootTelemetryClient extends TelemetryClient {
   trackCliCommandEnv(actual: string) {
     this.trackCliCommand({
       command: 'env',
+      value: actual,
+    });
+  }
+
+  trackCliCommandFlags(actual: string) {
+    this.trackCliCommand({
+      command: 'flags',
       value: actual,
     });
   }
@@ -194,6 +215,13 @@ export class RootTelemetryClient extends TelemetryClient {
     });
   }
 
+  trackCliCommandMetrics(actual: string) {
+    this.trackCliCommand({
+      command: 'metrics',
+      value: actual,
+    });
+  }
+
   trackCliCommandMicrofrontends(actual: string) {
     this.trackCliCommand({
       command: 'microfrontends',
@@ -288,6 +316,27 @@ export class RootTelemetryClient extends TelemetryClient {
   trackCliCommandWhoami(actual: string) {
     this.trackCliCommand({
       command: 'whoami',
+      value: actual,
+    });
+  }
+
+  trackCliCommandUpgrade(actual: string) {
+    this.trackCliCommand({
+      command: 'upgrade',
+      value: actual,
+    });
+  }
+
+  trackCliCommandWebhooks(actual: string) {
+    this.trackCliCommand({
+      command: 'webhooks',
+      value: actual,
+    });
+  }
+
+  trackCliCommandUsage(actual: string) {
+    this.trackCliCommand({
+      command: 'usage',
       value: actual,
     });
   }
