@@ -1,14 +1,20 @@
+import { agentCommand } from './agent/command';
+import { activityCommand } from './activity/command';
 import { aliasCommand } from './alias/command';
+import { apiCommand } from './api/command';
 import { bisectCommand } from './bisect/command';
 import { buildCommand } from './build/command';
+import { buyCommand } from './buy/command';
 import { cacheCommand } from './cache/command';
 import { certsCommand } from './certs/command';
+import { contractCommand } from './contract/command';
 import { curlCommand } from './curl/command';
 import { deployCommand } from './deploy/command';
 import { devCommand } from './dev/command';
 import { dnsCommand } from './dns/command';
 import { domainsCommand } from './domains/command';
 import { envCommand } from './env/command';
+import { flagsCommand } from './flags/command';
 import { gitCommand } from './git/command';
 import { guidanceCommand } from './guidance/command';
 import { httpstatCommand } from './httpstat/command';
@@ -23,6 +29,7 @@ import { loginCommand } from './login/command';
 import { logoutCommand } from './logout/command';
 import { logsCommand } from './logs/command';
 import { mcpCommand } from './mcp/command';
+import { metricsCommand } from './metrics/command';
 import { microfrontendsCommand } from './microfrontends/command';
 import { openCommand } from './open/command';
 import { projectCommand } from './project/command';
@@ -31,29 +38,39 @@ import { pullCommand } from './pull/command';
 import { redeployCommand } from './redeploy/command';
 import { redirectsCommand } from './redirects/command';
 import { removeCommand } from './remove/command';
+import { routesCommand } from './routes/command';
 import { rollbackCommand } from './rollback/command';
 import { rollingReleaseCommand } from './rolling-release/command';
 import { targetCommand } from './target/command';
 import { teamsCommand } from './teams/command';
 import { telemetryCommand } from './telemetry/command';
+import { upgradeCommand } from './upgrade/command';
+import { usageCommand } from './usage/command';
 import { whoamiCommand } from './whoami/command';
 import { blobCommand } from './blob/command';
+import { webhooksCommand } from './webhooks/command';
 import type { Command } from './help';
 import output from '../output-manager';
 
 const commandsStructs = [
+  agentCommand,
   aliasCommand,
+  activityCommand,
+  apiCommand,
   blobCommand,
   bisectCommand,
   buildCommand,
+  buyCommand,
   cacheCommand,
   certsCommand,
+  contractCommand,
   curlCommand,
   deployCommand,
   devCommand,
   dnsCommand,
   domainsCommand,
   envCommand,
+  flagsCommand,
   gitCommand,
   httpstatCommand,
   initCommand,
@@ -75,11 +92,15 @@ const commandsStructs = [
   redeployCommand,
   redirectsCommand,
   removeCommand,
+  routesCommand,
   rollbackCommand,
   rollingReleaseCommand,
   targetCommand,
   teamsCommand,
   telemetryCommand,
+  upgradeCommand,
+  webhooksCommand,
+  usageCommand,
   whoamiCommand,
   // added because we don't have a full help command
   { name: 'help', aliases: [] },
@@ -87,6 +108,10 @@ const commandsStructs = [
 
 if (process.env.FF_GUIDANCE_MODE) {
   commandsStructs.push(guidanceCommand);
+}
+
+if (process.env.FF_METRICS) {
+  commandsStructs.push(metricsCommand);
 }
 
 export function getCommandAliases(command: Pick<Command, 'name' | 'aliases'>) {
@@ -108,3 +133,5 @@ for (const command of commandsStructs) {
 output.debug(
   `All registered commands: ${JSON.stringify(Array.from(commands.entries()))}`
 );
+
+export const commandNames = Array.from(commands.keys());

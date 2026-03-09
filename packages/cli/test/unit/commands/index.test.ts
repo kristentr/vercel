@@ -4,14 +4,19 @@ describe('index', () => {
   it('outputs a map of what aliases our commands use', () => {
     expect(commands).toEqual(
       new Map([
+        ['agent', 'agent'],
         ['alias', 'alias'],
         ['aliases', 'alias'],
+        ['activity', 'activity'],
+        ['api', 'api'],
         ['bisect', 'bisect'],
         ['blob', 'blob'],
         ['build', 'build'],
+        ['buy', 'buy'],
         ['cache', 'cache'],
         ['cert', 'certs'],
         ['certs', 'certs'],
+        ['contract', 'contract'],
         ['curl', 'curl'],
         ['deploy', 'deploy'],
         ['dev', 'dev'],
@@ -20,6 +25,7 @@ describe('index', () => {
         ['domain', 'domains'],
         ['domains', 'domains'],
         ['env', 'env'],
+        ['flags', 'flags'],
         ['git', 'git'],
         ['help', 'help'],
         ['httpstat', 'httpstat'],
@@ -53,6 +59,7 @@ describe('index', () => {
         ['rm', 'remove'],
         ['rollback', 'rollback'],
         ['rolling-release', 'rolling-release'],
+        ['routes', 'routes'],
         ['rr', 'rolling-release'],
         ['switch', 'teams'],
         ['target', 'target'],
@@ -60,6 +67,10 @@ describe('index', () => {
         ['team', 'teams'],
         ['teams', 'teams'],
         ['telemetry', 'telemetry'],
+        ['upgrade', 'upgrade'],
+        ['webhook', 'webhooks'],
+        ['webhooks', 'webhooks'],
+        ['usage', 'usage'],
         ['whoami', 'whoami'],
       ])
     );

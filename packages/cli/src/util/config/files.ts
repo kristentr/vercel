@@ -11,6 +11,10 @@ import type { VercelConfig } from '../dev/types';
 import type { AuthConfig, GlobalConfig } from '@vercel-internals/types';
 import { isErrnoException, isError } from '@vercel/error-utils';
 import { VERCEL_DIR as PROJECT_VERCEL_DIR } from '../projects/link';
+import {
+  VERCEL_CONFIG_EXTENSIONS,
+  DEFAULT_VERCEL_CONFIG_FILENAME,
+} from '../compile-vercel-config';
 
 import output from '../../output-manager';
 
@@ -27,7 +31,7 @@ export const readConfigFile = (): GlobalConfig => {
 // writes whatever's in `stuff` to "global config" file, atomically
 export const writeToConfigFile = (stuff: GlobalConfig): void => {
   try {
-    return writeJSON.sync(CONFIG_FILE_PATH, stuff, { indent: 2 });
+    writeJSON.sync(CONFIG_FILE_PATH, stuff, { indent: 2 });
   } catch (err: unknown) {
     if (isErrnoException(err)) {
       if (isErrnoException(err) && err.code === 'EPERM') {
@@ -119,23 +123,22 @@ export function readLocalConfig(
   }
 
   try {
-    try {
-      accessSync(target, constants.F_OK);
-      config = loadJSON.sync(target);
-    } catch {
-      // File doesn't exist, config remains undefined
-    }
+    accessSync(target, constants.F_OK);
+    config = loadJSON.sync(target);
   } catch (err: unknown) {
-    if (isError(err) && err.name === 'JSONError') {
+    if (isErrnoException(err) && err.code === 'ENOENT') {
+      // File doesn't exist, config remains undefined
+    } else if (isError(err) && err.name === 'JSONError') {
       output.error(err.message);
+      process.exit(1);
     } else if (isErrnoException(err)) {
       const code = err.code ? ` (${err.code})` : '';
-
       output.error(`Failed to read config file: ${target}${code}`);
+      process.exit(1);
     } else {
       output.prettyError(err);
+      process.exit(1);
     }
-    process.exit(1);
   }
 
   if (!config) {
@@ -144,13 +147,11 @@ export function readLocalConfig(
 
   // If reading from .vercel/vercel.json (compiled config), detect the source file
   const isCompiledConfig =
-    process.env.VERCEL_TS_CONFIG_ENABLED &&
     basename(target) === 'vercel.json' &&
     basename(dirname(target)) === PROJECT_VERCEL_DIR;
 
   if (isCompiledConfig) {
     const workPath = dirname(dirname(target));
-    const VERCEL_CONFIG_EXTENSIONS = ['ts', 'mts', 'js', 'mjs', 'cjs'] as const;
     let sourceFile: string | null = null;
     for (const ext of VERCEL_CONFIG_EXTENSIONS) {
       const configPath = join(workPath, `vercel.${ext}`);
@@ -160,7 +161,7 @@ export function readLocalConfig(
         break;
       } catch {}
     }
-    config[fileNameSymbol] = sourceFile || 'vercel.ts';
+    config[fileNameSymbol] = sourceFile || DEFAULT_VERCEL_CONFIG_FILENAME;
   } else {
     config[fileNameSymbol] = basename(target);
   }

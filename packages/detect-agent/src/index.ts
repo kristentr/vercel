@@ -10,6 +10,8 @@ const DEVIN = 'devin' as const;
 const REPLIT = 'replit' as const;
 const GEMINI = 'gemini' as const;
 const CODEX = 'codex' as const;
+const AUGMENT_CLI = 'augment-cli' as const;
+const OPENCODE = 'opencode' as const;
 
 export type KnownAgentNames =
   | typeof CURSOR
@@ -18,7 +20,9 @@ export type KnownAgentNames =
   | typeof DEVIN
   | typeof REPLIT
   | typeof GEMINI
-  | typeof CODEX;
+  | typeof CODEX
+  | typeof AUGMENT_CLI
+  | typeof OPENCODE;
 
 export interface KnownAgentDetails {
   name: KnownAgentNames;
@@ -42,6 +46,8 @@ export const KNOWN_AGENTS = {
   REPLIT,
   GEMINI,
   CODEX,
+  AUGMENT_CLI,
+  OPENCODE,
 } as const;
 
 export async function determineAgent(): Promise<AgentResult> {
@@ -71,6 +77,14 @@ export async function determineAgent(): Promise<AgentResult> {
     return { isAgent: true, agent: { name: CODEX } };
   }
 
+  if (process.env.AUGMENT_AGENT) {
+    return { isAgent: true, agent: { name: AUGMENT_CLI } };
+  }
+
+  if (process.env.OPENCODE_CLIENT) {
+    return { isAgent: true, agent: { name: OPENCODE } };
+  }
+
   if (process.env.CLAUDECODE || process.env.CLAUDE_CODE) {
     return { isAgent: true, agent: { name: CLAUDE } };
   }
@@ -82,7 +96,7 @@ export async function determineAgent(): Promise<AgentResult> {
   try {
     await access(DEVIN_LOCAL_PATH, constants.F_OK);
     return { isAgent: true, agent: { name: DEVIN } };
-  } catch (error) {
+  } catch (_error) {
     // noop
   }
 

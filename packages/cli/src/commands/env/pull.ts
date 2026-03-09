@@ -6,7 +6,7 @@ import type Client from '../../util/client';
 import { emoji, prependEmoji } from '../../util/emoji';
 import param from '../../util/output/param';
 import stamp from '../../util/output/stamp';
-import { getCommandName } from '../../util/pkg-name';
+import { getCommandName, getCommandNamePlain } from '../../util/pkg-name';
 import {
   type EnvRecordsSource,
   pullEnvRecords,
@@ -15,7 +15,6 @@ import {
   buildDeltaString,
   createEnvObject,
 } from '../../util/env/diff-env-files';
-import { formatEnvValue } from '../../util/env/format-env-value';
 import { isErrnoException } from '@vercel/error-utils';
 import { addToGitIgnore } from '../../util/link/add-to-gitignore';
 import JSONparse from 'json-parse-better-errors';
@@ -29,6 +28,12 @@ import { getFlagsSpecification } from '../../util/get-flags-specification';
 import { printError } from '../../util/error';
 import parseTarget from '../../util/parse-target';
 import { getLinkedProject } from '../../util/projects/link';
+import {
+  buildCommandWithYes,
+  getPreservedArgsForEnvPull,
+  outputActionRequired,
+  outputAgentError,
+} from '../../util/agent-output';
 
 const CONTENTS_PREFIX = '# Created by Vercel CLI\n';
 
@@ -103,6 +108,31 @@ export default async function pull(
   if (link.status === 'error') {
     return link.exitCode;
   } else if (link.status === 'not_linked') {
+    if (client.nonInteractive) {
+      const preserved = getPreservedArgsForEnvPull(client.argv);
+      const linkArgv = [
+        ...client.argv.slice(0, 2),
+        'link',
+        '--scope',
+        '<scope>',
+        ...preserved,
+      ];
+      outputAgentError(
+        client,
+        {
+          status: 'error',
+          reason: 'not_linked',
+          message: `Your codebase isn't linked to a project on Vercel. Run ${getCommandNamePlain(
+            'link'
+          )} to begin. Use --yes for non-interactive; use --scope or --project to specify team or project.`,
+          next: [
+            { command: buildCommandWithYes(linkArgv) },
+            { command: buildCommandWithYes(client.argv) },
+          ],
+        },
+        1
+      );
+    }
     output.error(
       `Your codebase isn’t linked to a project on Vercel. Run ${getCommandName(
         'link'
@@ -149,16 +179,33 @@ export async function envPullCommandLogic(
 
   if (head === CONTENTS_PREFIX) {
     output.log(`Overwriting existing ${chalk.bold(filename)} file`);
-  } else if (
-    exists &&
-    !skipConfirmation &&
-    !(await client.input.confirm(
-      `Found existing file ${param(filename)}. Do you want to overwrite?`,
-      false
-    ))
-  ) {
-    output.log('Canceled');
-    return;
+  } else if (exists && !skipConfirmation) {
+    if (client.nonInteractive) {
+      outputActionRequired(client, {
+        status: 'action_required',
+        reason: 'env_file_exists',
+        message: `File ${param(filename)} already exists and was not created by Vercel CLI. Use --yes to overwrite or specify a different filename.`,
+        next: [
+          {
+            command: getCommandNamePlain(`env pull ${filename} --yes`),
+            when: 'Overwrite this file',
+          },
+          {
+            command: getCommandNamePlain('env pull <filename>'),
+            when: 'Use a different filename',
+          },
+        ],
+      });
+    }
+    if (
+      !(await client.input.confirm(
+        `Found existing file ${param(filename)}. Do you want to overwrite?`,
+        false
+      ))
+    ) {
+      output.log('Canceled');
+      return;
+    }
   }
 
   const projectSlugLink = formatProject(link.org.slug, link.project.name);
@@ -204,7 +251,7 @@ export async function envPullCommandLogic(
     Object.keys(records)
       .sort()
       .filter(key => !VARIABLES_TO_IGNORE.includes(key))
-      .map(key => `${key}=${formatEnvValue(records[key])}`)
+      .map(key => `${key}="${escapeValue(records[key])}"`)
       .join('\n') +
     '\n';
 
@@ -235,4 +282,12 @@ export async function envPullCommandLogic(
       emoji('success')
     )}\n`
   );
+}
+
+function escapeValue(value: string | undefined) {
+  return value
+    ? value
+        .replace(new RegExp('\n', 'g'), '\\n') // combine newlines (unix) into one line
+        .replace(new RegExp('\r', 'g'), '\\r') // combine newlines (windows) into one line
+    : '';
 }

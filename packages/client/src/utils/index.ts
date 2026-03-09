@@ -65,7 +65,6 @@ export async function parseVercelConfig(
 
     return JSON.parse(jsonString);
   } catch (e) {
-    // eslint-disable-next-line no-console
     console.error(e);
 
     return {};
@@ -75,7 +74,7 @@ export async function parseVercelConfig(
 const maybeRead = async function <T>(path: string, default_: T) {
   try {
     return await readFile(path, 'utf8');
-  } catch (err) {
+  } catch (_err) {
     return default_;
   }
 };
@@ -88,6 +87,7 @@ export async function buildFileTree(
     vercelOutputDir,
     rootDirectory,
     projectName,
+    bulkRedirectsPath,
   }: Pick<
     VercelClientOptions,
     | 'isDirectory'
@@ -95,6 +95,7 @@ export async function buildFileTree(
     | 'vercelOutputDir'
     | 'rootDirectory'
     | 'projectName'
+    | 'bulkRedirectsPath'
   >,
   debug: Debug
 ): Promise<{ fileList: string[]; ignoreList: string[] }> {
@@ -167,6 +168,41 @@ export async function buildFileTree(
       }
     } catch (e) {
       debug(`Error checking for .vercel/routes.json: ${e}`);
+    }
+
+    // Include bulkRedirectsPath file if specified (for prebuilt deployments)
+    if (prebuilt && bulkRedirectsPath) {
+      try {
+        const projectRoot = path;
+        const bulkRedirectsFullPath = join(
+          projectRoot,
+          rootDirectory || '',
+          bulkRedirectsPath
+        );
+
+        // Validate that the resolved path stays within the project root
+        const relativeFromRoot = relative(projectRoot, bulkRedirectsFullPath);
+        if (relativeFromRoot.startsWith('..')) {
+          debug(
+            `Skipping bulk redirects file "${bulkRedirectsPath}" - path traversal detected (resolves outside project root)`
+          );
+        } else {
+          const bulkRedirectsContent = await maybeRead(
+            bulkRedirectsFullPath,
+            null
+          );
+          if (bulkRedirectsContent !== null) {
+            refs.add(bulkRedirectsFullPath);
+            debug(
+              `Including bulk redirects file "${bulkRedirectsPath}" in deployment`
+            );
+          } else {
+            debug(`Bulk redirects file "${bulkRedirectsPath}" not found`);
+          }
+        }
+      } catch (e) {
+        debug(`Error checking for bulk redirects file: ${e}`);
+      }
     }
 
     if (refs.size > 0) {
@@ -287,7 +323,7 @@ interface FetchOpts extends RequestInit {
   userAgent?: string;
 }
 
-export const fetch = async (
+export const fetchApi = async (
   url: string,
   token: string,
   opts: FetchOpts = {},
